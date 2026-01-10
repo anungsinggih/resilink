@@ -9,28 +9,36 @@ SET
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 
+-- Drop existing policies if any (to avoid conflicts)
+DROP POLICY IF EXISTS "Public can read PDFs" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can upload PDFs" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can delete their PDFs" ON storage.objects;
+DROP POLICY IF EXISTS "Public can read images" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can upload images" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can delete their images" ON storage.objects;
+
 -- Policies for order-pdfs bucket
-CREATE POLICY IF NOT EXISTS "Public can read PDFs"
+CREATE POLICY "Public can read PDFs"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'order-pdfs');
 
-CREATE POLICY IF NOT EXISTS "Anyone can upload PDFs"
+CREATE POLICY "Anyone can upload PDFs"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'order-pdfs');
 
-CREATE POLICY IF NOT EXISTS "Anyone can delete their PDFs"
+CREATE POLICY "Anyone can delete their PDFs"
 ON storage.objects FOR DELETE
 USING (bucket_id = 'order-pdfs');
 
 -- Policies for order-images bucket
-CREATE POLICY IF NOT EXISTS "Public can read images"
+CREATE POLICY "Public can read images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'order-images');
 
-CREATE POLICY IF NOT EXISTS "Anyone can upload images"
+CREATE POLICY "Anyone can upload images"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'order-images');
 
-CREATE POLICY IF NOT EXISTS "Anyone can delete their images"
+CREATE POLICY "Anyone can delete their images"
 ON storage.objects FOR DELETE
 USING (bucket_id = 'order-images');
