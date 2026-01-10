@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Landing from './pages/Landing';
 import Dropshipper from './pages/Dropshipper';
 import Supplier from './pages/Supplier';
+import Catalog from './pages/Catalog';
 import { parseShippingLabel } from './lib/pdfParser';
 
 const UploadHandler = () => {
@@ -64,6 +65,7 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/dropshipper" element={<Dropshipper />} />
         <Route path="/supplier" element={<Supplier />} />
+        <Route path="/supplier/catalog" element={<Catalog />} />
         <Route path="/upload" element={<UploadHandler />} />
       </Routes>
     </Router>
