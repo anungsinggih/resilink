@@ -5,9 +5,9 @@
         ],
         "target": {
             "namespace": "android_app",
-            "package_name": "com.resilink.app",
+            "package_name": "app.netlify.resishare.twa",
             "sha256_cert_fingerprints": [
-                "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"
+                "44:70:FE:77:2E:00:74:D8:B1:AB:4A:44:73:1E:17:93:38:B5:87:55:2D:CB:E4:5E:5F:42:35:A4:93:0C:72:F1"
             ]
         }
     }
