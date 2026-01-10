@@ -31,3 +31,19 @@ dist-ssr
 # Supabase
 supabase/.temp/
 
+# Android / TWA (Bubblewrap)
+.gradle/
+build/
+app/build/
+local.properties
+*.apk
+*.aab
+*.keystore
+app-release-signed.apk
+app-release-bundle.aab
+manifest-checksum.txt
+twa-manifest.json
+android-sdk/
+jdk/
+.bubblewrap/
+
