@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, CheckCircle2, ChevronRight, Home, Grid, Image as ImageIcon, X } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Upload, CheckCircle2, Home, Grid, Image as ImageIcon, X, FileText, Eye } from 'lucide-react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { parseShippingLabel, type ParsedLabel } from '../lib/pdfParser';
 import { supabase } from '../lib/supabase';
 import { uploadImageToSupabase } from '../lib/imageUtils';
 
@@ -13,23 +12,62 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function Dropshipper() {
-    const [activeResi, setActiveResi] = useState<ParsedLabel | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
+    const [uploadedPdf, setUploadedPdf] = useState<string | null>(null);
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+    const [isUploadingPdf, setIsUploadingPdf] = useState(false);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [products, setProducts] = useState<any[]>([]);
     const [recentOrders, setRecentOrders] = useState<any[]>([]);
+    const [showProductSelection, setShowProductSelection] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
 
     useEffect(() => {
         fetchData();
-
-        // Cek apakah ada resi yang baru dishare dari PWA Share Target
-        const pending = sessionStorage.getItem('pending_resi');
-        if (pending) {
-            setActiveResi(JSON.parse(pending));
-            sessionStorage.removeItem('pending_resi');
-        }
+        handleSharedPdf();
     }, []);
+
+    const handleSharedPdf = async () => {
+        if (searchParams.get('shared')) {
+            try {
+                const cache = await caches.open('shared-files');
+                const response = await cache.match('/shared-pdf');
+
+                if (response) {
+                    const blob = await response.blob();
+                    const file = new File([blob], "shared-label.pdf", { type: "application/pdf" });
+
+                    // Upload to Supabase Storage
+                    setIsUploadingPdf(true);
+                    const timestamp = Date.now();
+                    const randomStr = Math.random().toString(36).substring(7);
+                    const fileName = `${timestamp}-${randomStr}.pdf`;
+
+                    const { error } = await supabase.storage
+                        .from('order-pdfs')
+                        .upload(fileName, file, {
+                            contentType: 'application/pdf',
+                            upsert: false
+                        });
+
+                    if (!error) {
+                        const { data: { publicUrl } } = supabase.storage
+                            .from('order-pdfs')
+                            .getPublicUrl(fileName);
+
+                        setUploadedPdf(publicUrl);
+                        setShowProductSelection(true);
+                    }
+
+                    setIsUploadingPdf(false);
+                    await cache.delete('/shared-pdf');
+                }
+            } catch (err) {
+                console.error('Shared PDF error:', err);
+            }
+            // Remove query param
+            setSearchParams({});
+        }
+    };
 
     const fetchData = async () => {
         // Fetch products
@@ -48,19 +86,41 @@ export default function Dropshipper() {
         if (orderData) setRecentOrders(orderData);
     };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            setIsUploading(true);
-            try {
-                const parsedData = await parseShippingLabel(file);
-                setActiveResi(parsedData);
-            } catch (error) {
-                console.error('Failed to parse PDF:', error);
-                alert('Gagal membaca PDF. Pastikan label Shopee/Tokopedia valid.');
-            } finally {
-                setIsUploading(false);
-            }
+        if (!file) return;
+
+        if (file.type !== 'application/pdf') {
+            alert('Please upload a PDF file');
+            return;
+        }
+
+        setIsUploadingPdf(true);
+        try {
+            const timestamp = Date.now();
+            const randomStr = Math.random().toString(36).substring(7);
+            const fileName = `${timestamp}-${randomStr}.pdf`;
+
+            const { error } = await supabase.storage
+                .from('order-pdfs')
+                .upload(fileName, file, {
+                    contentType: 'application/pdf',
+                    upsert: false
+                });
+
+            if (error) throw error;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('order-pdfs')
+                .getPublicUrl(fileName);
+
+            setUploadedPdf(publicUrl);
+            setShowProductSelection(true);
+        } catch (error: any) {
+            console.error('PDF upload error:', error);
+            alert('Failed to upload PDF: ' + error.message);
+        } finally {
+            setIsUploadingPdf(false);
         }
     };
 
@@ -68,7 +128,6 @@ export default function Dropshipper() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Validate file type
         if (!file.type.startsWith('image/')) {
             alert('Please upload an image file');
             return;
@@ -87,74 +146,69 @@ export default function Dropshipper() {
     };
 
     const handleProductSelect = async (product: any) => {
-        if (!activeResi) return;
-
         const { error } = await supabase.from('orders').insert([{
-            order_id: activeResi.orderId,
-            tracking_number: activeResi.trackingNumber,
-            courier: activeResi.courier,
             product_id: product.id,
             status: 'pending',
             original_price: product.price,
+            pdf_url: uploadedPdf,
             image_url: uploadedImage
         }]);
 
         if (error) {
             alert('Gagal menyimpan order: ' + error.message);
         } else {
-            setActiveResi(null);
+            setUploadedPdf(null);
             setUploadedImage(null);
-            fetchData(); // Refresh list
+            setShowProductSelection(false);
+            fetchData();
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 pb-24">
-            <header className="flex justify-between items-center mb-8 max-w-2xl mx-auto">
-                <div>
-                    <button onClick={() => window.history.back()} className="text-xs text-slate-500 mb-2 flex items-center gap-1 hover:text-blue-500 transition-colors">
-                        ← Back to Landing
-                    </button>
-                    <h1 className="text-2xl font-bold">Dropshipper Panel</h1>
-                    <p className="text-slate-500 dark:text-slate-400">Order & Resi Management</p>
-                </div>
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 pb-32">
+            <header className="max-w-2xl mx-auto mb-6">
+                <button onClick={() => window.history.back()} className="text-xs text-slate-500 mb-2 flex items-center gap-1 hover:text-blue-500 transition-colors">
+                    ← Logout
+                </button>
+                <h1 className="text-2xl font-bold">Dropshipper</h1>
+                <p className="text-slate-500 text-sm">Upload & manage orders</p>
             </header>
 
             <main className="max-w-2xl mx-auto space-y-6">
                 {/* Upload Section - PDF and Image */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                     {/* PDF Upload */}
                     <section
                         className={cn(
-                            "relative group rounded-3xl border-2 border-dashed transition-all duration-300 p-8 text-center",
-                            activeResi ? "border-blue-500/50 bg-blue-500/5 dark:border-blue-500/30" : "border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600"
+                            "relative group rounded-2xl border-2 border-dashed transition-all duration-300 p-6 text-center",
+                            uploadedPdf ? "border-blue-500/50 bg-blue-500/5 dark:border-blue-500/30" : "border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600"
                         )}
                     >
-                        {activeResi ? (
+                        {uploadedPdf ? (
                             <div className="flex flex-col items-center">
-                                <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30 mb-3">
-                                    <FileText className="w-6 h-6 text-blue-600" />
+                                <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30 mb-2">
+                                    <FileText className="w-5 h-5 text-blue-600" />
                                 </div>
-                                <h3 className="text-sm font-bold mb-1 truncate w-full">{activeResi.trackingNumber}</h3>
-                                <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
-                                    <p className="flex items-center justify-center gap-1"><CheckCircle2 className="w-3 h-3" /> {activeResi.courier}</p>
-                                </div>
+                                <p className="text-xs font-bold mb-2">PDF Ready</p>
+                                <a href={uploadedPdf} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-600 hover:underline flex items-center gap-1">
+                                    <Eye className="w-3 h-3" /> Preview
+                                </a>
                                 <button
-                                    onClick={() => setActiveResi(null)}
-                                    className="mt-3 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                    onClick={() => setUploadedPdf(null)}
+                                    className="mt-2 text-[10px] text-slate-400 hover:text-red-500"
                                 >
-                                    Ganti File
+                                    Remove
                                 </button>
                             </div>
                         ) : (
                             <label className="cursor-pointer">
-                                <input type="file" className="hidden" accept=".pdf" onChange={handleFileUpload} />
-                                <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-800 mb-3 inline-block group-hover:scale-110 transition-transform">
-                                    {isUploading ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Upload className="w-8 h-8 text-blue-500" /></motion.div> : <Upload className="w-8 h-8 text-slate-400 group-hover:text-blue-500" />}
+                                <input type="file" className="hidden" accept=".pdf" onChange={handlePdfUpload} />
+                                <div className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 mb-2 inline-block group-hover:scale-110 transition-transform">
+                                    {isUploadingPdf ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Upload className="w-6 h-6 text-blue-500" /></motion.div> : <Upload className="w-6 h-6 text-slate-400 group-hover:text-blue-500" />}
                                 </div>
-                                <h3 className="text-base font-semibold mb-1">Upload PDF</h3>
-                                <p className="text-slate-500 text-xs">
-                                    Shipping label
+                                <h3 className="text-sm font-semibold mb-1">PDF Label</h3>
+                                <p className="text-slate-500 text-[10px]">
+                                    Upload resi
                                 </p>
                             </label>
                         )}
@@ -163,99 +217,111 @@ export default function Dropshipper() {
                     {/* Image Upload */}
                     <section
                         className={cn(
-                            "relative group rounded-3xl border-2 border-dashed transition-all duration-300 p-8 text-center",
+                            "relative group rounded-2xl border-2 border-dashed transition-all duration-300 p-6 text-center",
                             uploadedImage ? "border-emerald-500/50 bg-emerald-500/5 dark:border-emerald-500/30" : "border-slate-200 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-600"
                         )}
                     >
                         {uploadedImage ? (
                             <div className="flex flex-col items-center">
-                                <div className="relative w-full aspect-square rounded-2xl overflow-hidden mb-3">
+                                <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-2">
                                     <img src={uploadedImage} alt="Uploaded" className="w-full h-full object-cover" />
                                     <button
                                         onClick={() => setUploadedImage(null)}
-                                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
                                     >
                                         <X className="w-3 h-3" />
                                     </button>
                                 </div>
-                                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Image uploaded (WebP)</p>
+                                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">WebP</p>
                             </div>
                         ) : (
                             <label className="cursor-pointer">
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                                <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-800 mb-3 inline-block group-hover:scale-110 transition-transform">
-                                    {isUploadingImage ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><ImageIcon className="w-8 h-8 text-emerald-500" /></motion.div> : <ImageIcon className="w-8 h-8 text-slate-400 group-hover:text-emerald-500" />}
+                                <div className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 mb-2 inline-block group-hover:scale-110 transition-transform">
+                                    {isUploadingImage ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><ImageIcon className="w-6 h-6 text-emerald-500" /></motion.div> : <ImageIcon className="w-6 h-6 text-slate-400 group-hover:text-emerald-500" />}
                                 </div>
-                                <h3 className="text-base font-semibold mb-1">Add Image</h3>
-                                <p className="text-slate-500 text-xs">
-                                    Optional photo
+                                <h3 className="text-sm font-semibold mb-1">Photo</h3>
+                                <p className="text-slate-500 text-[10px]">
+                                    Optional
                                 </p>
                             </label>
                         )}
                     </section>
                 </div>
 
-                {/* Product Selection (Visible when Resi is active) */}
+                {/* Product Selection */}
                 <AnimatePresence>
-                    {activeResi && (
+                    {showProductSelection && uploadedPdf && (
                         <motion.section
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="space-y-4 overflow-hidden"
+                            className="space-y-3 overflow-hidden"
                         >
-                            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Select Product for this Resi</h3>
-                            <div className="grid grid-cols-1 gap-3">
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Product</h3>
+                            <div className="grid grid-cols-1 gap-2">
                                 {products.length > 0 ? products.map((product) => (
                                     <button
                                         key={product.id}
                                         onClick={() => handleProductSelect(product)}
-                                        className="flex items-center gap-4 p-4 rounded-2xl glass hover:bg-white dark:hover:bg-slate-900 border-2 border-transparent hover:border-blue-500 text-left transition-all group"
+                                        className="flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-blue-500 text-left transition-all active:scale-95"
                                     >
-                                        <img src={product.image_url || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=200&h=200&fit=crop'} className="w-16 h-16 rounded-xl object-cover" alt={product.name} />
-                                        <div className="flex-1">
-                                            <h4 className="font-semibold text-slate-900 dark:text-slate-100">{product.name}</h4>
-                                            <p className="text-sm text-slate-500">{product.code} • Rp {Number(product.price).toLocaleString('id-ID')}</p>
+                                        <img src={product.image_url || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=200&h=200&fit=crop'} className="w-12 h-12 rounded-xl object-cover" alt={product.name} />
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-bold text-sm truncate">{product.name}</h4>
+                                            <p className="text-xs text-slate-500">{product.code} • Rp {Number(product.price).toLocaleString('id-ID')}</p>
                                         </div>
-                                        <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                                        <CheckCircle2 className="w-5 h-5 text-slate-300" />
                                     </button>
                                 )) : (
-                                    <div className="p-8 text-center text-slate-400 text-sm">Belum ada produk dari Supplier.</div>
+                                    <div className="p-6 text-center text-slate-400 text-xs">No products available.</div>
                                 )}
                             </div>
                         </motion.section>
                     )}
                 </AnimatePresence>
 
-                {/* History / Recent Orders */}
-                {!activeResi && (
-                    <section className="space-y-4">
+                {/* Recent Orders */}
+                {!showProductSelection && (
+                    <section className="space-y-3">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Recent Resi (Last 3 Days)</h3>
-                            <span className="text-[10px] bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-500">Auto-destruct enabled</span>
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Recent Orders</h3>
+                            <span className="text-[10px] bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-500">Last 3 Days</span>
                         </div>
                         <div className="space-y-2">
-                            {recentOrders.map((order) => (
-                                <div key={order.id} className="p-4 rounded-2xl bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <FileText className="w-5 h-5 text-blue-500" />
-                                        <div>
-                                            <div className="text-sm font-medium">{order.tracking_number}</div>
-                                            <div className="text-[10px] text-slate-400">
-                                                {new Date(order.created_at).toLocaleTimeString()} • {order.products?.name || 'Unknown Product'}
-                                            </div>
+                            {recentOrders.map((order, index) => (
+                                <div key={order.id} className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                                        <span className="text-xs font-black text-blue-600">#{recentOrders.length - index}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-bold truncate">{order.products?.name || 'Unknown'}</div>
+                                        <div className="text-[10px] text-slate-400">
+                                            {new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </div>
+                                    <div className="flex gap-1">
+                                        {order.pdf_url && (
+                                            <a href={order.pdf_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20">
+                                                <FileText className="w-3 h-3" />
+                                            </a>
+                                        )}
+                                        {order.image_url && (
+                                            <a href={order.image_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
+                                                <ImageIcon className="w-3 h-3" />
+                                            </a>
+                                        )}
+                                    </div>
                                     <div className={cn(
-                                        "text-[10px] font-semibold px-2 py-1 rounded-lg",
-                                        order.status === 'printed' ? "bg-green-500/10 text-green-500" : "bg-blue-500/10 text-blue-500"
+                                        "text-[10px] font-bold px-2 py-1 rounded-lg",
+                                        order.status === 'printed' ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"
                                     )}>
                                         {order.status.toUpperCase()}
                                     </div>
                                 </div>
                             ))}
                             {recentOrders.length === 0 && (
-                                <div className="p-8 text-center text-slate-400 text-sm italic">Belum ada data resi.</div>
+                                <div className="p-8 text-center text-slate-400 text-sm italic">No orders yet.</div>
                             )}
                         </div>
                     </section>
@@ -271,10 +337,9 @@ export default function Dropshipper() {
 function BottomNav() {
     const location = useLocation();
 
-    // For Dropshipper, Catalog and Wallet are read-only views of Supplier data
     const navItems = [
         { label: 'Upload', path: '/dropshipper', icon: <Home className="w-5 h-5" /> },
-        { label: 'Catalog', path: '/supplier/catalog', icon: <Grid className="w-5 h-5" /> }, // Shared for now
+        { label: 'Catalog', path: '/supplier/catalog', icon: <Grid className="w-5 h-5" /> },
     ];
 
     return (

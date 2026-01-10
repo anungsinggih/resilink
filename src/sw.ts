@@ -6,7 +6,7 @@ declare let self: ServiceWorkerGlobalScope;
 
 precacheAndRoute(self.__WB_MANIFEST);
 
-// Handle Share Target
+// Handle Share Target for PDF files
 self.addEventListener('fetch', (event: FetchEvent) => {
     const url = new URL(event.request.url);
 
@@ -18,13 +18,12 @@ self.addEventListener('fetch', (event: FetchEvent) => {
                     const file = formData.get('file');
 
                     if (file instanceof File) {
-                        // Simpan file di Cache API agar bisa diambil oleh halaman /upload
+                        // Store PDF temporarily in Cache API
                         const cache = await caches.open('shared-files');
                         await cache.put('/shared-pdf', new Response(file));
 
-                        // Redirect ke halaman upload dengan query param
-                        // Menggunakan 303 See Other agar POST berubah menjadi GET di halaman tujuan
-                        return Response.redirect('/upload?shared=true', 303);
+                        // Redirect to dropshipper page with shared flag
+                        return Response.redirect('/dropshipper?shared=true', 303);
                     }
                 } catch (err) {
                     console.error('Share target error:', err);
