@@ -19,6 +19,13 @@ export default function Dropshipper() {
 
     useEffect(() => {
         fetchData();
+
+        // Cek apakah ada resi yang baru dishare dari PWA Share Target
+        const pending = sessionStorage.getItem('pending_resi');
+        if (pending) {
+            setActiveResi(JSON.parse(pending));
+            sessionStorage.removeItem('pending_resi');
+        }
     }, []);
 
     const fetchData = async () => {
