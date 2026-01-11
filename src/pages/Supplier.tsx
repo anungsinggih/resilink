@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Printer, TrendingUp, Search, Home, Grid, ArrowRight, Image as ImageIcon, FileText, Eye, X } from 'lucide-react';
+import { Package, Printer, Home, Grid, Image as ImageIcon, FileText, Eye, X, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link, useLocation } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
@@ -11,9 +11,10 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function Supplier() {
-    const [orders, setOrders] = useState<any[]>([]);
-    const [stats, setStats] = useState({ totalEarnings: 0, pendingCount: 0, fulfillmentRate: 0 });
+    const [pendingOrders, setPendingOrders] = useState<any[]>([]);
+    const [printedOrders, setPrintedOrders] = useState<any[]>([]);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'pending' | 'printed' | 'catalog'>('pending');
 
     useEffect(() => {
         fetchOrders();
@@ -23,28 +24,38 @@ export default function Supplier() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const { data: orderData } = await supabase
+        // Fetch pending orders
+        const { data: pending } = await supabase
             .from('orders')
-            .select('*, products(name)')
+            .select('*')
+            .eq('status', 'pending')
             .gte('created_at', today.toISOString())
             .order('created_at', { ascending: false });
 
-        if (orderData) {
-            setOrders(orderData);
+        // Fetch printed orders
+        const { data: printed } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('status', 'printed')
+            .gte('created_at', today.toISOString())
+            .order('created_at', { ascending: false });
 
-            // Calculate stats
-            const total = orderData.reduce((acc: number, curr: any) => acc + (Number(curr.original_price) || 0), 0);
-            const pending = orderData.filter((o: any) => o.status === 'pending').length;
-            setStats({
-                totalEarnings: total,
-                pendingCount: pending,
-                fulfillmentRate: orderData.length > 0 ? Math.round(((orderData.length - pending) / orderData.length) * 100) : 0
-            });
+        if (pending) setPendingOrders(pending);
+        if (printed) setPrintedOrders(printed);
+    };
+
+    const handlePrint = async (orderId: string) => {
+        const { error } = await supabase
+            .from('orders')
+            .update({ status: 'printed' })
+            .eq('id', orderId);
+
+        if (!error) {
+            fetchOrders();
         }
     };
 
     const handlePrintAll = async () => {
-        const pendingOrders = orders.filter(o => o.status === 'pending');
         if (pendingOrders.length === 0) return;
 
         const { error } = await supabase
@@ -53,7 +64,6 @@ export default function Supplier() {
             .in('id', pendingOrders.map(o => o.id));
 
         if (!error) {
-            alert('All pending orders marked as PRINTED.');
             fetchOrders();
         }
     };
@@ -62,116 +72,153 @@ export default function Supplier() {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 pb-32">
             <header className="max-w-4xl mx-auto mb-6">
                 <button onClick={() => window.history.back()} className="text-xs text-slate-500 mb-2 flex items-center gap-1 hover:text-blue-500 transition-colors">
-                    ← Logout
+                    ← Back
                 </button>
-                <h1 className="text-2xl font-bold">Supplier Hub</h1>
-                <p className="text-slate-500 text-sm">Process & fulfill orders</p>
+                <h1 className="text-2xl font-bold">Supplier</h1>
+                <p className="text-slate-500 text-sm">Process orders</p>
             </header>
 
-            <main className="max-w-4xl mx-auto space-y-6">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-3 gap-3">
-                    <StatCard
-                        label="Earnings"
-                        value={`Rp ${stats.totalEarnings.toLocaleString('id-ID')}`}
-                        icon={<TrendingUp className="w-5 h-5 text-emerald-500" />}
-                    />
-                    <StatCard
-                        label="Pending"
-                        value={stats.pendingCount.toString()}
-                        icon={<Printer className="w-5 h-5 text-blue-500" />}
-                    />
-                    <StatCard
-                        label="Rate"
-                        value={`${stats.fulfillmentRate}%`}
-                        icon={<Package className="w-5 h-5 text-indigo-500" />}
-                    />
+            {/* Tabs */}
+            <div className="max-w-4xl mx-auto mb-6">
+                <div className="flex gap-2 bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <button
+                        onClick={() => setActiveTab('pending')}
+                        className={cn(
+                            "flex-1 py-2 px-4 rounded-xl text-sm font-bold transition-all relative",
+                            activeTab === 'pending' ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-600"
+                        )}
+                    >
+                        Pending
+                        {pendingOrders.length > 0 && (
+                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">
+                                {pendingOrders.length}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('printed')}
+                        className={cn(
+                            "flex-1 py-2 px-4 rounded-xl text-sm font-bold transition-all",
+                            activeTab === 'printed' ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-600"
+                        )}
+                    >
+                        Printed
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('catalog')}
+                        className={cn(
+                            "flex-1 py-2 px-4 rounded-xl text-sm font-bold transition-all",
+                            activeTab === 'catalog' ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-600"
+                        )}
+                    >
+                        Catalog
+                    </button>
                 </div>
+            </div>
 
-                <button
-                    onClick={handlePrintAll}
-                    className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 group shadow-xl shadow-indigo-500/20"
-                >
-                    <Printer className="w-5 h-5" />
-                    <span className="text-base">Print All Pending</span>
-                    <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                </button>
-
-                {/* Orders List - Mobile Optimized */}
-                <section className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
-                    <div className="p-4 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center">
-                        <h3 className="font-bold text-sm flex items-center gap-2">
-                            <Search className="w-4 h-4 text-slate-400" />
-                            Today's Orders
-                        </h3>
-                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full text-slate-500 font-black uppercase">LIVE</span>
-                    </div>
-                    <div className="divide-y divide-slate-50 dark:divide-slate-800">
-                        {orders.map((order, index) => (
-                            <motion.div
-                                key={order.id}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors"
+            <main className="max-w-4xl mx-auto space-y-6">
+                {/* Pending Tab */}
+                {activeTab === 'pending' && (
+                    <>
+                        {pendingOrders.length > 0 && (
+                            <button
+                                onClick={handlePrintAll}
+                                className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-500/20"
                             >
-                                <div className="flex items-start gap-3">
-                                    {/* Order Number */}
-                                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                                        <span className="text-sm font-black text-blue-600">#{orders.length - index}</span>
+                                <Printer className="w-5 h-5" />
+                                <span>Print All ({pendingOrders.length})</span>
+                            </button>
+                        )}
+
+                        <div className="space-y-3">
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">Pending Orders ({pendingOrders.length})</h3>
+                            {pendingOrders.map((order, index) => (
+                                <div key={order.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
+                                    <div className="flex items-start gap-3 mb-3">
+                                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                                            <span className="text-sm font-black text-blue-600">#{pendingOrders.length - index}</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-bold">{new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
+                                            <p className="text-xs text-slate-400">Order #{order.id.slice(0, 8)}</p>
+                                        </div>
                                     </div>
 
-                                    {/* Order Info */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between gap-2 mb-2">
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-bold truncate">{order.products?.name}</h4>
-                                                <p className="text-xs text-slate-400">{new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-black">Rp {Number(order.original_price).toLocaleString('id-ID')}</p>
-                                                <span className={cn(
-                                                    "text-[10px] font-black px-2 py-0.5 rounded-lg",
-                                                    order.status === 'printed' ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"
-                                                )}>
-                                                    {order.status.toUpperCase()}
-                                                </span>
-                                            </div>
-                                        </div>
+                                    <div className="flex gap-2 mb-3">
+                                        {order.pdf_url && (
+                                            <a href={order.pdf_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors text-xs font-medium">
+                                                <FileText className="w-4 h-4" />
+                                                <span>PDF</span>
+                                                <Eye className="w-3 h-3" />
+                                            </a>
+                                        )}
+                                        {order.image_url && (
+                                            <button onClick={() => setPreviewImage(order.image_url)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors text-xs font-medium">
+                                                <ImageIcon className="w-4 h-4" />
+                                                <span>Image</span>
+                                                <Eye className="w-3 h-3" />
+                                            </button>
+                                        )}
+                                    </div>
 
-                                        {/* File Previews */}
-                                        <div className="flex gap-2">
-                                            {order.pdf_url && (
-                                                <a
-                                                    href={order.pdf_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors text-xs font-medium"
-                                                >
-                                                    <FileText className="w-3 h-3" />
-                                                    <span>PDF</span>
-                                                    <Eye className="w-3 h-3" />
-                                                </a>
-                                            )}
-                                            {order.image_url && (
-                                                <button
-                                                    onClick={() => setPreviewImage(order.image_url)}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors text-xs font-medium"
-                                                >
-                                                    <ImageIcon className="w-3 h-3" />
-                                                    <span>Image</span>
-                                                    <Eye className="w-3 h-3" />
-                                                </button>
-                                            )}
-                                        </div>
+                                    <button
+                                        onClick={() => handlePrint(order.id)}
+                                        className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Printer className="w-4 h-4" />
+                                        <span>Print</span>
+                                    </button>
+                                </div>
+                            ))}
+                            {pendingOrders.length === 0 && (
+                                <div className="p-12 text-center text-slate-400 text-sm italic">No pending orders.</div>
+                            )}
+                        </div>
+                    </>
+                )}
+
+                {/* Printed Tab */}
+                {activeTab === 'printed' && (
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">Printed Orders ({printedOrders.length})</h3>
+                        {printedOrders.map((order, index) => (
+                            <div key={order.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                                        <CheckCircle className="w-5 h-5 text-emerald-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold">{new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
+                                        <p className="text-xs text-slate-400">Order #{order.id.slice(0, 8)}</p>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        {order.pdf_url && (
+                                            <a href={order.pdf_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20">
+                                                <FileText className="w-4 h-4" />
+                                            </a>
+                                        )}
+                                        {order.image_url && (
+                                            <button onClick={() => setPreviewImage(order.image_url)} className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
+                                                <ImageIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
-                            </motion.div>
+                            </div>
                         ))}
-                        {orders.length === 0 && (
-                            <div className="p-12 text-center text-slate-400 italic text-sm">No orders today. Rest well!</div>
+                        {printedOrders.length === 0 && (
+                            <div className="p-12 text-center text-slate-400 text-sm italic">No printed orders yet.</div>
                         )}
                     </div>
-                </section>
+                )}
+
+                {/* Catalog Tab */}
+                {activeTab === 'catalog' && (
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-12 text-center">
+                        <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                        <p className="text-slate-400">Catalog view coming soon...</p>
+                    </div>
+                )}
             </main>
 
             {/* Bottom Navigation */}
@@ -217,7 +264,7 @@ function BottomNav() {
     const location = useLocation();
 
     const navItems = [
-        { label: 'Hub', path: '/supplier', icon: <Home className="w-5 h-5" /> },
+        { label: 'Orders', path: '/supplier', icon: <Home className="w-5 h-5" /> },
         { label: 'Catalog', path: '/supplier/catalog', icon: <Grid className="w-5 h-5" /> },
     ];
 
@@ -236,20 +283,6 @@ function BottomNav() {
                     <span className="text-[10px] font-black mt-1 uppercase tracking-widest">{item.label}</span>
                 </Link>
             ))}
-        </div>
-    );
-}
-
-function StatCard({ label, value, icon }: { label: string, value: string, icon: React.ReactNode }) {
-    return (
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm">
-            <div className="flex justify-between items-start mb-2">
-                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800">
-                    {icon}
-                </div>
-            </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-            <h4 className="text-base font-black tracking-tight">{value}</h4>
         </div>
     );
 }
