@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Image as ImageIcon, X, FileText, Eye, Send } from 'lucide-react';
+import { Upload, Image as ImageIcon, X, FileText, Eye, Send, Trash2, History } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -19,6 +19,20 @@ export default function Dropshipper() {
     const [orders, setOrders] = useState<any[]>([]);
     const [searchParams, setSearchParams] = useSearchParams();
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [showHistory, setShowHistory] = useState(false);
+
+    // Separate today's orders from history
+    const todayOrders = orders.filter(order => {
+        const orderDate = new Date(order.created_at);
+        const today = new Date();
+        return orderDate.toDateString() === today.toDateString();
+    });
+
+    const historyOrders = orders.filter(order => {
+        const orderDate = new Date(order.created_at);
+        const today = new Date();
+        return orderDate.toDateString() !== today.toDateString();
+    });
 
     useEffect(() => {
         fetchOrders();
@@ -66,13 +80,14 @@ export default function Dropshipper() {
     };
 
     const fetchOrders = async () => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
 
         const { data } = await supabase
             .from('orders')
             .select('*')
-            .gte('created_at', today.toISOString())
+            .gte('created_at', sevenDaysAgo.toISOString())
             .order('created_at', { ascending: false });
 
         if (data) setOrders(data);
@@ -158,14 +173,43 @@ export default function Dropshipper() {
         }
     };
 
+    const handleDeleteOrder = async (orderId: string) => {
+        if (!confirm('Are you sure you want to delete this order?')) return;
+
+        const { error } = await supabase
+            .from('orders')
+            .delete()
+            .eq('id', orderId);
+
+        if (error) {
+            alert('Failed to delete order: ' + error.message);
+        } else {
+            fetchOrders();
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 pb-32">
             <header className="max-w-2xl mx-auto mb-6">
                 <button onClick={() => window.history.back()} className="text-xs text-slate-500 mb-2 flex items-center gap-1 hover:text-blue-500 transition-colors">
                     ← Back
                 </button>
-                <h1 className="text-2xl font-bold">Dropshipper</h1>
-                <p className="text-slate-500 text-sm">Upload orders</p>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold">Dropshipper</h1>
+                        <p className="text-slate-500 text-sm">Upload orders</p>
+                    </div>
+                    {historyOrders.length > 0 && (
+                        <button
+                            onClick={() => setShowHistory(true)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        >
+                            <History className="w-4 h-4" />
+                            <span className="text-sm font-bold">History</span>
+                            <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">{historyOrders.length}</span>
+                        </button>
+                    )}
+                </div>
             </header>
 
             <main className="max-w-2xl mx-auto space-y-6">
@@ -248,13 +292,13 @@ export default function Dropshipper() {
                     </button>
                 </div>
 
-                {/* Orders List */}
+                {/* Today's Orders Only */}
                 <div className="space-y-3">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">Today's Orders ({orders.length})</h3>
-                    {orders.map((order, index) => (
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">Today's Orders ({todayOrders.length})</h3>
+                    {todayOrders.map((order, index) => (
                         <div key={order.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                                <span className="text-sm font-black text-blue-600">#{orders.length - index}</span>
+                                <span className="text-sm font-black text-blue-600">#{todayOrders.length - index}</span>
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-bold">{new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
@@ -278,9 +322,16 @@ export default function Dropshipper() {
                             )}>
                                 {order.status.toUpperCase()}
                             </div>
+                            <button
+                                onClick={() => handleDeleteOrder(order.id)}
+                                className="p-1.5 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
+                                title="Delete order"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
                         </div>
                     ))}
-                    {orders.length === 0 && (
+                    {todayOrders.length === 0 && (
                         <div className="p-12 text-center text-slate-400 text-sm italic">No orders today.</div>
                     )}
                 </div>
@@ -314,6 +365,95 @@ export default function Dropshipper() {
                                 alt="Preview"
                                 className="w-full h-auto max-h-[80vh] object-contain rounded-2xl"
                             />
+                        </motion.div>
+                    </motion.div>
+                )}
+
+                {/* History Modal */}
+                {showHistory && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowHistory(false)}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 20 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative max-w-2xl w-full max-h-[80vh] bg-white dark:bg-slate-900 rounded-3xl overflow-hidden"
+                        >
+                            <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-6 flex items-center justify-between z-10">
+                                <div>
+                                    <h2 className="text-xl font-bold">Order History</h2>
+                                    <p className="text-sm text-slate-500">Last 6 days</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowHistory(false)}
+                                    className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="p-6 overflow-y-auto max-h-[calc(80vh-100px)] space-y-6">
+                                {(() => {
+                                    // Group history orders by date
+                                    const groupedOrders = historyOrders.reduce((groups: any, order: any) => {
+                                        const date = new Date(order.created_at).toLocaleDateString('id-ID', {
+                                            weekday: 'long',
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        });
+                                        if (!groups[date]) {
+                                            groups[date] = [];
+                                        }
+                                        groups[date].push(order);
+                                        return groups;
+                                    }, {});
+
+                                    return Object.entries(groupedOrders).map(([date, dateOrders]: [string, any]) => (
+                                        <div key={date} className="space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800"></div>
+                                                <h4 className="text-xs font-bold text-slate-500">{date}</h4>
+                                                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800"></div>
+                                            </div>
+                                            {dateOrders.map((order: any, index: number) => (
+                                                <div key={order.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-3 flex items-center gap-2 text-sm">
+                                                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                                                        <span className="text-xs font-black text-blue-600">#{dateOrders.length - index}</span>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold">{new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
+                                                        <p className="text-[10px] text-slate-400">#{order.id.slice(0, 8)}</p>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        {order.pdf_url && (
+                                                            <a href={order.pdf_url} target="_blank" rel="noopener noreferrer" className="p-1 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20">
+                                                                <FileText className="w-3 h-3" />
+                                                            </a>
+                                                        )}
+                                                        {order.image_url && (
+                                                            <button onClick={() => { setShowHistory(false); setPreviewImage(order.image_url); }} className="p-1 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
+                                                                <ImageIcon className="w-3 h-3" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    <div className={cn(
+                                                        "text-[9px] font-bold px-1.5 py-0.5 rounded",
+                                                        order.status === 'printed' ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"
+                                                    )}>
+                                                        {order.status.toUpperCase()}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ));
+                                })()}
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}

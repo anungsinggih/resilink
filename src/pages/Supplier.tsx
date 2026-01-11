@@ -43,20 +43,49 @@ export default function Supplier() {
         if (printed) setPrintedOrders(printed);
     };
 
-    const handlePrint = async (orderId: string) => {
+
+    const handlePrint = async (order: any) => {
+        // Open PDF in new window for printing
+        if (order.pdf_url) {
+            const printWindow = window.open(order.pdf_url, '_blank');
+            if (printWindow) {
+                printWindow.onload = () => {
+                    printWindow.print();
+                };
+            }
+        }
+
+        // Mark as printed
         const { error } = await supabase
             .from('orders')
             .update({ status: 'printed' })
-            .eq('id', orderId);
+            .eq('id', order.id);
 
         if (!error) {
             fetchOrders();
         }
     };
 
+
     const handlePrintAll = async () => {
         if (pendingOrders.length === 0) return;
 
+        // Open all PDFs in new tabs for printing
+        pendingOrders.forEach((order, index) => {
+            if (order.pdf_url) {
+                // Add small delay between opening tabs to prevent browser blocking
+                setTimeout(() => {
+                    const printWindow = window.open(order.pdf_url, '_blank');
+                    if (printWindow) {
+                        printWindow.onload = () => {
+                            printWindow.print();
+                        };
+                    }
+                }, index * 100); // 100ms delay between each tab
+            }
+        });
+
+        // Mark all as printed
         const { error } = await supabase
             .from('orders')
             .update({ status: 'printed' })
@@ -178,7 +207,7 @@ export default function Supplier() {
                                     </div>
 
                                     <button
-                                        onClick={() => handlePrint(order.id)}
+                                        onClick={() => handlePrint(order)}
                                         className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
                                     >
                                         <Printer className="w-4 h-4" />
