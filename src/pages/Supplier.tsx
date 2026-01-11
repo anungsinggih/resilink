@@ -78,6 +78,32 @@ export default function Supplier() {
                 <p className="text-slate-500 text-sm">Process orders</p>
             </header>
 
+            {/* Summary Cards */}
+            <div className="max-w-4xl mx-auto mb-6">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Pending</p>
+                            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                                <Printer className="w-5 h-5 text-blue-600" />
+                            </div>
+                        </div>
+                        <h3 className="text-3xl font-black">{pendingOrders.length}</h3>
+                        <p className="text-xs text-slate-400 mt-1">Orders to print</p>
+                    </div>
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Printed</p>
+                            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                                <CheckCircle className="w-5 h-5 text-emerald-600" />
+                            </div>
+                        </div>
+                        <h3 className="text-3xl font-black">{printedOrders.length}</h3>
+                        <p className="text-xs text-slate-400 mt-1">Completed today</p>
+                    </div>
+                </div>
+            </div>
+
             {/* Tabs */}
             <div className="max-w-4xl mx-auto mb-6">
                 <div className="flex gap-2 bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-100 dark:border-slate-800">
