@@ -197,7 +197,7 @@ export default function Supplier() {
                 {activeTab === 'printed' && (
                     <div className="space-y-3">
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">Printed Orders ({printedOrders.length})</h3>
-                        {printedOrders.map((order, index) => (
+                        {printedOrders.map((order) => (
                             <div key={order.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
                                 <div className="flex items-start gap-3">
                                     <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
