@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Printer, Home, Grid, Image as ImageIcon, FileText, Eye, X, CheckCircle } from 'lucide-react';
+import { Printer, Home, Image as ImageIcon, FileText, Eye, X, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -14,7 +14,7 @@ export default function Supplier() {
     const [pendingOrders, setPendingOrders] = useState<any[]>([]);
     const [printedOrders, setPrintedOrders] = useState<any[]>([]);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'pending' | 'printed' | 'catalog'>('pending');
+    const [activeTab, setActiveTab] = useState<'pending' | 'printed'>('pending');
 
     useEffect(() => {
         fetchOrders();
@@ -130,15 +130,6 @@ export default function Supplier() {
                     >
                         Printed
                     </button>
-                    <button
-                        onClick={() => setActiveTab('catalog')}
-                        className={cn(
-                            "flex-1 py-2 px-4 rounded-xl text-sm font-bold transition-all",
-                            activeTab === 'catalog' ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-600"
-                        )}
-                    >
-                        Catalog
-                    </button>
                 </div>
             </div>
 
@@ -237,14 +228,6 @@ export default function Supplier() {
                         )}
                     </div>
                 )}
-
-                {/* Catalog Tab */}
-                {activeTab === 'catalog' && (
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-12 text-center">
-                        <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                        <p className="text-slate-400">Catalog view coming soon...</p>
-                    </div>
-                )}
             </main>
 
             {/* Bottom Navigation */}
@@ -287,28 +270,15 @@ export default function Supplier() {
 }
 
 function BottomNav() {
-    const location = useLocation();
-
-    const navItems = [
-        { label: 'Orders', path: '/supplier', icon: <Home className="w-5 h-5" /> },
-        { label: 'Catalog', path: '/supplier/catalog', icon: <Grid className="w-5 h-5" /> },
-    ];
-
     return (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/20 dark:border-slate-800 rounded-3xl p-2 flex justify-between items-center shadow-2xl z-40">
-            {navItems.map((item) => (
-                <Link
-                    key={item.path}
-                    to={item.path}
-                    className={cn(
-                        "flex-1 flex flex-col items-center py-2 transition-all rounded-2xl",
-                        location.pathname === item.path ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                    )}
-                >
-                    {item.icon}
-                    <span className="text-[10px] font-black mt-1 uppercase tracking-widest">{item.label}</span>
-                </Link>
-            ))}
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/20 dark:border-slate-800 rounded-3xl p-2 flex justify-center items-center shadow-2xl z-40">
+            <Link
+                to="/supplier"
+                className="flex flex-col items-center py-2 px-6 transition-all rounded-2xl text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10"
+            >
+                <Home className="w-5 h-5" />
+                <span className="text-[10px] font-black mt-1 uppercase tracking-widest">Orders</span>
+            </Link>
         </div>
     );
 }
