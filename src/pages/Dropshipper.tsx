@@ -20,6 +20,7 @@ export default function Dropshipper() {
     const [recentOrders, setRecentOrders] = useState<any[]>([]);
     const [showProductSelection, setShowProductSelection] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -307,9 +308,9 @@ export default function Dropshipper() {
                                             </a>
                                         )}
                                         {order.image_url && (
-                                            <a href={order.image_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
+                                            <button onClick={() => setPreviewImage(order.image_url)} className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
                                                 <ImageIcon className="w-3 h-3" />
-                                            </a>
+                                            </button>
                                         )}
                                     </div>
                                     <div className={cn(
@@ -330,6 +331,39 @@ export default function Dropshipper() {
 
             {/* Bottom Navigation */}
             <BottomNav />
+
+            {/* Image Preview Modal */}
+            <AnimatePresence>
+                {previewImage && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setPreviewImage(null)}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0.9 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative max-w-4xl w-full"
+                        >
+                            <button
+                                onClick={() => setPreviewImage(null)}
+                                className="absolute -top-12 right-0 p-2 text-white hover:text-red-500 transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                            <img
+                                src={previewImage}
+                                alt="Preview"
+                                className="w-full h-auto max-h-[80vh] object-contain rounded-2xl"
+                            />
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

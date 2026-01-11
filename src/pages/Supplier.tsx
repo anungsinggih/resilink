@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Package, Printer, TrendingUp, Search, Home, Grid, ArrowRight, Image as ImageIcon, FileText, Eye } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Package, Printer, TrendingUp, Search, Home, Grid, ArrowRight, Image as ImageIcon, FileText, Eye, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link, useLocation } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
@@ -13,6 +13,7 @@ function cn(...inputs: ClassValue[]) {
 export default function Supplier() {
     const [orders, setOrders] = useState<any[]>([]);
     const [stats, setStats] = useState({ totalEarnings: 0, pendingCount: 0, fulfillmentRate: 0 });
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     useEffect(() => {
         fetchOrders();
@@ -152,16 +153,14 @@ export default function Supplier() {
                                                 </a>
                                             )}
                                             {order.image_url && (
-                                                <a
-                                                    href={order.image_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
+                                                <button
+                                                    onClick={() => setPreviewImage(order.image_url)}
                                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors text-xs font-medium"
                                                 >
                                                     <ImageIcon className="w-3 h-3" />
                                                     <span>Image</span>
                                                     <Eye className="w-3 h-3" />
-                                                </a>
+                                                </button>
                                             )}
                                         </div>
                                     </div>
@@ -177,6 +176,39 @@ export default function Supplier() {
 
             {/* Bottom Navigation */}
             <BottomNav />
+
+            {/* Image Preview Modal */}
+            <AnimatePresence>
+                {previewImage && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setPreviewImage(null)}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0.9 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative max-w-4xl w-full"
+                        >
+                            <button
+                                onClick={() => setPreviewImage(null)}
+                                className="absolute -top-12 right-0 p-2 text-white hover:text-red-500 transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                            <img
+                                src={previewImage}
+                                alt="Preview"
+                                className="w-full h-auto max-h-[80vh] object-contain rounded-2xl"
+                            />
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
