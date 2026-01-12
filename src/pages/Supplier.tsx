@@ -4,6 +4,7 @@ import { Printer, Image as ImageIcon, FileText, Eye, X, CheckCircle } from 'luci
 import { supabase } from '../lib/supabase';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { PDFDocument } from 'pdf-lib';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -67,32 +68,59 @@ export default function Supplier() {
     };
 
 
+    const [isPrinting, setIsPrinting] = useState(false);
+
     const handlePrintAll = async () => {
-        if (pendingOrders.length === 0) return;
+        if (pendingOrders.length === 0 || isPrinting) return;
+        setIsPrinting(true);
 
-        // Open all PDFs in new tabs for printing
-        pendingOrders.forEach((order, index) => {
-            if (order.pdf_url) {
-                // Add small delay between opening tabs to prevent browser blocking
-                setTimeout(() => {
-                    const printWindow = window.open(order.pdf_url, '_blank');
-                    if (printWindow) {
-                        printWindow.onload = () => {
-                            printWindow.print();
-                        };
+        try {
+            // Create a new PDF document to hold merged pages
+            const mergedPdf = await PDFDocument.create();
+
+            // Fetch and merge all PDFs
+            for (const order of pendingOrders) {
+                if (order.pdf_url) {
+                    try {
+                        const response = await fetch(order.pdf_url);
+                        const arrayBuffer = await response.arrayBuffer();
+                        const pdf = await PDFDocument.load(arrayBuffer);
+                        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                        copiedPages.forEach((page) => mergedPdf.addPage(page));
+                    } catch (err) {
+                        console.error('Error merging PDF for order:', order.id, err);
                     }
-                }, index * 100); // 100ms delay between each tab
+                }
             }
-        });
 
-        // Mark all as printed
-        const { error } = await supabase
-            .from('orders')
-            .update({ status: 'printed' })
-            .in('id', pendingOrders.map(o => o.id));
+            // Save the merged PDF and open it
+            const pdfBytes = await mergedPdf.save();
+            const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
 
-        if (!error) {
-            fetchOrders();
+            const printWindow = window.open(url, '_blank');
+            if (printWindow) {
+                printWindow.onload = () => {
+                    printWindow.print();
+                    // Optional: revoke URL after print might break functionality in some browsers if done too quickly
+                };
+            }
+
+            // Mark all as printed
+            const { error } = await supabase
+                .from('orders')
+                .update({ status: 'printed' })
+                .in('id', pendingOrders.map(o => o.id));
+
+            if (!error) {
+                fetchOrders();
+            }
+
+        } catch (error) {
+            console.error('Failed to merge PDFs:', error);
+            alert('Failed to process print all. Please try again.');
+        } finally {
+            setIsPrinting(false);
         }
     };
 
@@ -168,10 +196,16 @@ export default function Supplier() {
                         {pendingOrders.length > 0 && (
                             <button
                                 onClick={handlePrintAll}
-                                className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-500/20"
+                                disabled={isPrinting}
+                                className={cn(
+                                    "w-full py-4 rounded-2xl text-white font-bold transition-all flex items-center justify-center gap-3 shadow-xl",
+                                    isPrinting
+                                        ? "bg-indigo-400 cursor-not-allowed shadow-none"
+                                        : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20"
+                                )}
                             >
-                                <Printer className="w-5 h-5" />
-                                <span>Print All ({pendingOrders.length})</span>
+                                <Printer className={cn("w-5 h-5", isPrinting && "animate-pulse")} />
+                                <span>{isPrinting ? "Merging PDFs..." : `Print All (${pendingOrders.length})`}</span>
                             </button>
                         )}
 

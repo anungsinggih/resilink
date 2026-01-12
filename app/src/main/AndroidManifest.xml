@@ -152,6 +152,14 @@
                     
                         <data android:mimeType="application/pdf" />
                     
+                        <data android:mimeType="image/png" />
+                    
+                        <data android:mimeType="image/jpeg" />
+                    
+                        <data android:mimeType="image/webp" />
+                    
+                        <data android:mimeType="image/gif" />
+                    
                 </intent-filter>
             
 
