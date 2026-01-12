@@ -50,7 +50,7 @@ export default defineConfig({
             files: [
               {
                 name: 'file',
-                accept: ['application/pdf']
+                accept: ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif']
               }
             ]
           }

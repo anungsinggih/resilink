@@ -45,7 +45,7 @@ function RoleCard({ title, description, icon, to, delay }: { title: string, desc
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay }}
         >
-            <Link to={to} className="group relative block p-8 rounded-3xl glass hover:bg-white/90 dark:hover:bg-slate-900/90 transition-all duration-300">
+            <Link to={to} className="group relative block p-8 rounded-3xl bg-white/70 backdrop-blur-lg border border-white/20 dark:bg-slate-900/70 dark:border-slate-800/20 hover:bg-white/90 dark:hover:bg-slate-900/90 transition-all duration-300">
                 <div className="flex items-start justify-between mb-6">
                     <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 group-hover:scale-110 transition-transform">
                         {icon}

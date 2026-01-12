@@ -36,44 +36,57 @@ export default function Dropshipper() {
 
     useEffect(() => {
         fetchOrders();
-        handleSharedPdf();
+        handleSharedFile();
     }, []);
 
-    const handleSharedPdf = async () => {
+    const handleSharedFile = async () => {
         if (searchParams.get('shared')) {
             try {
                 const cache = await caches.open('shared-files');
-                const response = await cache.match('/shared-pdf');
+                const response = await cache.match('/shared-file');
 
                 if (response) {
                     const blob = await response.blob();
-                    const file = new File([blob], "shared-label.pdf", { type: "application/pdf" });
 
-                    setIsUploadingPdf(true);
-                    const timestamp = Date.now();
-                    const randomStr = Math.random().toString(36).substring(7);
-                    const fileName = `${timestamp}-${randomStr}.pdf`;
+                    if (blob.type === 'application/pdf') {
+                        const file = new File([blob], "shared-label.pdf", { type: "application/pdf" });
+                        setIsUploadingPdf(true);
+                        const timestamp = Date.now();
+                        const randomStr = Math.random().toString(36).substring(7);
+                        const fileName = `${timestamp}-${randomStr}.pdf`;
 
-                    const { error } = await supabase.storage
-                        .from('order-pdfs')
-                        .upload(fileName, file, {
-                            contentType: 'application/pdf',
-                            upsert: false
-                        });
-
-                    if (!error) {
-                        const { data: { publicUrl } } = supabase.storage
+                        const { error } = await supabase.storage
                             .from('order-pdfs')
-                            .getPublicUrl(fileName);
+                            .upload(fileName, file, {
+                                contentType: 'application/pdf',
+                                upsert: false
+                            });
 
-                        setUploadedPdf(publicUrl);
+                        if (!error) {
+                            const { data: { publicUrl } } = supabase.storage
+                                .from('order-pdfs')
+                                .getPublicUrl(fileName);
+
+                            setUploadedPdf(publicUrl);
+                        }
+                        setIsUploadingPdf(false);
+
+                    } else if (blob.type.startsWith('image/')) {
+                        const file = new File([blob], "shared-image.png", { type: blob.type });
+                        setIsUploadingImage(true);
+
+                        const publicUrl = await uploadImageToSupabase(file, 'order-images');
+
+                        if (publicUrl) {
+                            setUploadedImage(publicUrl);
+                        }
+                        setIsUploadingImage(false);
                     }
 
-                    setIsUploadingPdf(false);
-                    await cache.delete('/shared-pdf');
+                    await cache.delete('/shared-file');
                 }
             } catch (err) {
-                console.error('Shared PDF error:', err);
+                console.error('Shared File error:', err);
             }
             setSearchParams({});
         }

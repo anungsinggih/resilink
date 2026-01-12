@@ -18,9 +18,9 @@ self.addEventListener('fetch', (event: FetchEvent) => {
                     const file = formData.get('file');
 
                     if (file instanceof File) {
-                        // Store PDF temporarily in Cache API
+                        // Store file temporarily in Cache API
                         const cache = await caches.open('shared-files');
-                        await cache.put('/shared-pdf', new Response(file));
+                        await cache.put('/shared-file', new Response(file));
 
                         // Redirect to dropshipper page with shared flag
                         return Response.redirect('/dropshipper?shared=true', 303);
