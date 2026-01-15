@@ -42,19 +42,19 @@ export default defineConfig({
             purpose: 'any maskable'
           }
         ],
-        share_target: {
-          action: '/upload',
-          method: 'POST',
-          enctype: 'multipart/form-data',
-          params: {
-            files: [
-              {
-                name: 'file',
-                accept: ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif']
-              }
-            ]
-          }
-        },
+        // share_target: {
+        //   action: '/upload',
+        //   method: 'POST',
+        //   enctype: 'multipart/form-data',
+        //   params: {
+        //     files: [
+        //       {
+        //         name: 'file',
+        //         accept: ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif']
+        //       }
+        //     ]
+        //   }
+        // },
         prefer_related_applications: true,
         related_applications: [
           {
