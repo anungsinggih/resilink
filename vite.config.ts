@@ -59,6 +59,7 @@ export default defineConfig({
         related_applications: [
           {
             platform: 'play',
+            url: 'https://resilink-hwcn.vercel.app/manifest.webmanifest',
             id: 'app.vercel.resilink.twa'
           }
         ]
