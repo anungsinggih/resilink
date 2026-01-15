@@ -10,7 +10,8 @@ precacheAndRoute(self.__WB_MANIFEST);
 self.addEventListener('fetch', (event: FetchEvent) => {
     const url = new URL(event.request.url);
 
-    if (event.request.method === 'POST' && url.pathname === '/upload') {
+    // Check if the request is a POST to /upload (ignoring trailing slashes)
+    if (event.request.method === 'POST' && url.pathname.replace(/\/$/, '') === '/upload') {
         event.respondWith(
             (async () => {
                 try {
