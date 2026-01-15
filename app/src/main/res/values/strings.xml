@@ -34,7 +34,7 @@
         \"relation\": [\"delegate_permission/common.handle_all_urls\"],
         \"target\": {
             \"namespace\": \"web\",
-            \"site\": \"https://resishare.netlify.app\"
+            \"site\": \"https://resilink-hwcn.vercel.app\"
         }
     }]
     

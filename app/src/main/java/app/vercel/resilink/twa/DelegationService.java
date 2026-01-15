@@ -1,4 +1,4 @@
-package app.netlify.resishare.twa;
+package app.vercel.resilink.twa;
 
 
 
