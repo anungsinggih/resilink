@@ -21,8 +21,8 @@ plugins {
 }
 
 def twaManifest = [
-    applicationId: 'app.vercel.resilink.twa',
-    hostName: 'resilink-hwcn.vercel.app', // The domain being opened in the TWA.
+    applicationId: 'app.vercel.resilink.phi.twa',
+    hostName: 'resilink-phi.vercel.app', // The domain being opened in the TWA.
     launchUrl: '/', // The start path for the TWA. Must be relative to the domain.
     name: 'Resilink', // The application name.
     launcherName: 'Resilink', // The name shown on the Android Launcher.
@@ -52,9 +52,9 @@ def twaManifest = [
 
 android {
     compileSdkVersion 36
-    namespace "app.vercel.resilink.twa"
+    namespace "app.vercel.resilink.phi.twa"
     defaultConfig {
-        applicationId "app.vercel.resilink.twa"
+        applicationId "app.vercel.resilink.phi.twa"
         minSdkVersion 21
         targetSdkVersion 35
         versionCode 2
@@ -76,17 +76,17 @@ android {
             // The URL the Web Manifest for the Progressive Web App that the TWA points to. This
             // is used by Chrome OS and Meta Quest to open the Web version of the PWA instead of
             // the TWA, as it will probably give a better user experience for non-mobile devices.
-            resValue "string", "webManifestUrl", 'https://resilink-hwcn.vercel.app/manifest.webmanifest'
+            resValue "string", "webManifestUrl", 'https://resilink-phi.vercel.app/manifest.webmanifest'
         
 
         
             // This is used by Meta Quest.
-            resValue "string", "fullScopeUrl", 'https://resilink-hwcn.vercel.app/'
+            resValue "string", "fullScopeUrl", 'https://resilink-phi.vercel.app/'
         
 
         
             // The data for the app to support web share target.
-            resValue "string", "shareTarget", '{\\"action\\":\\"https://resilink-hwcn.vercel.app/upload\\",\\"method\\":\\"POST\\",\\"enctype\\":\\"multipart/form-data\\",\\"params\\":{\\"files\\":[{\\"name\\":\\"file\\",\\"accept\\":[\\"application/pdf\\",\\"image/png\\",\\"image/jpeg\\",\\"image/webp\\",\\"image/gif\\"]}]}}'
+            resValue "string", "shareTarget", '{\\"action\\":\\"https://resilink-phi.vercel.app/upload\\",\\"method\\":\\"POST\\",\\"enctype\\":\\"multipart/form-data\\",\\"params\\":{\\"files\\":[{\\"name\\":\\"file\\",\\"accept\\":[\\"application/pdf\\",\\"image/png\\",\\"image/jpeg\\",\\"image/webp\\",\\"image/gif\\"]}]}}'
         
 
         // The hostname is used when building the intent-filter, so the TWA is able to
