@@ -16,24 +16,22 @@ self.addEventListener('fetch', (event: FetchEvent) => {
             (async () => {
                 try {
                     const formData = await event.request.formData();
-                    // Try getting 'file', or fallback to the first file found
-                    let file = formData.get('file');
+                    const cache = await caches.open('shared-files');
+                    let hasFile = false;
 
-                    if (!file) {
-                        for (const [key, value] of formData.entries()) {
-                            if (value instanceof File) {
-                                file = value;
-                                break;
+                    for (const [, value] of formData.entries()) {
+                        if (value instanceof File) {
+                            if (value.type === 'application/pdf') {
+                                await cache.put('/shared-pdf', new Response(value));
+                                hasFile = true;
+                            } else if (value.type.startsWith('image/')) {
+                                await cache.put('/shared-image', new Response(value));
+                                hasFile = true;
                             }
                         }
                     }
 
-                    if (file instanceof File) {
-                        // Store file temporarily in Cache API
-                        const cache = await caches.open('shared-files');
-                        await cache.put('/shared-file', new Response(file));
-
-                        // Redirect to dropshipper page with shared flag
+                    if (hasFile) {
                         return Response.redirect('/dropshipper?shared=true', 303);
                     }
                 } catch (err) {

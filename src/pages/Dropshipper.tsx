@@ -55,63 +55,58 @@ export default function Dropshipper() {
         if (searchParams.get('shared')) {
             try {
                 const cache = await caches.open('shared-files');
-                const response = await cache.match('/shared-file');
 
-                if (response) {
-                    const blob = await response.blob();
+                // Process PDF
+                const pdfResponse = await cache.match('/shared-pdf');
+                if (pdfResponse) {
+                    const blob = await pdfResponse.blob();
+                    const file = new File([blob], "shared-label.pdf", { type: "application/pdf" });
+                    setIsUploadingPdf(true);
 
-                    if (blob.type === 'application/pdf') {
-                        const file = new File([blob], "shared-label.pdf", { type: "application/pdf" });
-                        setIsUploadingPdf(true);
-                        const timestamp = Date.now();
-                        const randomStr = Math.random().toString(36).substring(7);
-                        const fileName = `${timestamp}-${randomStr}.pdf`;
+                    const timestamp = Date.now();
+                    const randomStr = Math.random().toString(36).substring(7);
+                    const fileName = `${timestamp}-${randomStr}.pdf`;
 
-                        const { error } = await supabase.storage
+                    const { error } = await supabase.storage
+                        .from('order-pdfs')
+                        .upload(fileName, file, { contentType: 'application/pdf', upsert: false });
+
+                    if (!error) {
+                        const { data: { publicUrl } } = supabase.storage
                             .from('order-pdfs')
-                            .upload(fileName, file, {
-                                contentType: 'application/pdf',
-                                upsert: false
-                            });
-
-                        if (!error) {
-                            const { data: { publicUrl } } = supabase.storage
-                                .from('order-pdfs')
-                                .getPublicUrl(fileName);
-
-                            setUploadedPdf(publicUrl);
-                        }
-                        setIsUploadingPdf(false);
-
-                    } else if (blob.type.startsWith('image/')) {
-                        // Use exact same method as PDF for images (direct upload, no conversion)
-                        const extension = blob.type.split('/')[1] || 'png';
-                        const file = new File([blob], `shared-image.${extension}`, { type: blob.type });
-                        setIsUploadingImage(true);
-
-                        const timestamp = Date.now();
-                        const randomStr = Math.random().toString(36).substring(7);
-                        const fileName = `${timestamp}-${randomStr}.${extension}`;
-
-                        const { error } = await supabase.storage
-                            .from('order-images')
-                            .upload(fileName, file, {
-                                contentType: blob.type,
-                                upsert: false
-                            });
-
-                        if (!error) {
-                            const { data: { publicUrl } } = supabase.storage
-                                .from('order-images')
-                                .getPublicUrl(fileName);
-
-                            setUploadedImage(publicUrl);
-                        }
-                        setIsUploadingImage(false);
+                            .getPublicUrl(fileName);
+                        setUploadedPdf(publicUrl);
                     }
-
-                    await cache.delete('/shared-file');
+                    setIsUploadingPdf(false);
+                    await cache.delete('/shared-pdf');
                 }
+
+                // Process Image
+                const imageResponse = await cache.match('/shared-image');
+                if (imageResponse) {
+                    const blob = await imageResponse.blob();
+                    const extension = blob.type.split('/')[1] || 'png';
+                    const file = new File([blob], `shared-image.${extension}`, { type: blob.type });
+                    setIsUploadingImage(true);
+
+                    const timestamp = Date.now();
+                    const randomStr = Math.random().toString(36).substring(7);
+                    const fileName = `${timestamp}-${randomStr}.${extension}`;
+
+                    const { error } = await supabase.storage
+                        .from('order-images')
+                        .upload(fileName, file, { contentType: blob.type, upsert: false });
+
+                    if (!error) {
+                        const { data: { publicUrl } } = supabase.storage
+                            .from('order-images')
+                            .getPublicUrl(fileName);
+                        setUploadedImage(publicUrl);
+                    }
+                    setIsUploadingImage(false);
+                    await cache.delete('/shared-image');
+                }
+
             } catch (err) {
                 console.error('Shared File error:', err);
             }
