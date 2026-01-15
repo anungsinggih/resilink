@@ -12,14 +12,26 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function Dropshipper() {
-    const [uploadedPdf, setUploadedPdf] = useState<string | null>(null);
-    const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+    // Initialize from localStorage if available
+    const [uploadedPdf, setUploadedPdf] = useState<string | null>(() => localStorage.getItem('draft_pdf_url'));
+    const [uploadedImage, setUploadedImage] = useState<string | null>(() => localStorage.getItem('draft_image_url'));
     const [isUploadingPdf, setIsUploadingPdf] = useState(false);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [orders, setOrders] = useState<any[]>([]);
     const [searchParams, setSearchParams] = useSearchParams();
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [showHistory, setShowHistory] = useState(false);
+
+    // Persist state to localStorage
+    useEffect(() => {
+        if (uploadedPdf) localStorage.setItem('draft_pdf_url', uploadedPdf);
+        else localStorage.removeItem('draft_pdf_url');
+    }, [uploadedPdf]);
+
+    useEffect(() => {
+        if (uploadedImage) localStorage.setItem('draft_image_url', uploadedImage);
+        else localStorage.removeItem('draft_image_url');
+    }, [uploadedImage]);
 
     // Separate today's orders from history
     const todayOrders = orders.filter(order => {
@@ -194,9 +206,11 @@ export default function Dropshipper() {
         if (error) {
             alert('Failed to send order: ' + error.message);
         } else {
-            // Reset form
+            // Reset form and clear storage
             setUploadedPdf(null);
             setUploadedImage(null);
+            localStorage.removeItem('draft_pdf_url');
+            localStorage.removeItem('draft_image_url');
             fetchOrders();
         }
     };
