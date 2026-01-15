@@ -54,7 +54,14 @@ export default defineConfig({
               }
             ]
           }
-        }
+        },
+        prefer_related_applications: true,
+        related_applications: [
+          {
+            platform: 'play',
+            id: 'app.vercel.resilink.twa'
+          }
+        ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
