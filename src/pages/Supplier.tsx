@@ -305,53 +305,91 @@ export default function Supplier() {
                 {activeTab === 'printed' && (
                     <div className="space-y-3">
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">Printed Orders ({printedOrders.length})</h3>
-                        {printedOrders.map((order) => (
-                            <div key={order.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-3 opacity-75 hover:opacity-100 transition-opacity">
-                                <div className="flex gap-3">
-                                    {/* Image Thumbnail or Icon */}
-                                    <div className="flex-shrink-0">
-                                        {order.image_url ? (
-                                            <button
-                                                onClick={() => setPreviewImage(order.image_url)}
-                                                className="w-16 h-16 rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800 relative group bg-slate-100 dark:bg-slate-800"
-                                            >
-                                                <img
-                                                    src={order.image_url}
-                                                    alt="Order"
-                                                    className="w-full h-full object-contain grayscale group-hover:grayscale-0 transition-all"
-                                                />
-                                            </button>
-                                        ) : (
-                                            <div className="w-16 h-16 rounded-xl bg-emerald-500/5 flex items-center justify-center border border-emerald-500/10">
-                                                <CheckCircle className="w-6 h-6 text-emerald-600" />
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Content */}
-                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                        {printedOrders.map((order, index) => (
+                            <div key={order.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden mb-4 opacity-90 hover:opacity-100 transition-opacity">
+                                {/* Header */}
+                                <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                                            <CheckCircle className="w-5 h-5 text-emerald-600" />
+                                        </div>
                                         <div>
-                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-500">
+                                            <p className="text-sm font-bold flex items-center gap-2">
                                                 {new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-600">PRINTED</span>
                                             </p>
-                                            <p className="text-xs text-slate-400">Order #{order.id.slice(0, 8)}</p>
+                                            <p className="text-[10px] text-slate-400">#{order.id.slice(0, 8)}</p>
                                         </div>
+                                    </div>
+                                    <div className="text-xs text-slate-400">
+                                        #{printedOrders.length - index}
+                                    </div>
+                                </div>
 
-                                        <div className="flex items-center gap-2 mt-2">
-                                            {/* PDF Link */}
-                                            {order.pdf_url && (
+                                {/* Split View Content */}
+                                <div className="flex bg-slate-100 dark:bg-slate-800 min-h-[300px]">
+                                    {/* Left Side: PDF (50%) */}
+                                    <div className="w-1/2 border-r border-slate-200 dark:border-slate-700 relative group">
+                                        {order.pdf_url ? (
+                                            <>
+                                                <iframe
+                                                    src={`${order.pdf_url}#toolbar=0&navpanes=0&scrollbar=0`}
+                                                    className="w-full h-full bg-white"
+                                                    title="PDF Preview"
+                                                />
+                                                {/* Reprint Button Overlay */}
+                                                <div className="absolute top-2 right-2">
+                                                    <button
+                                                        onClick={() => handlePrint(order)}
+                                                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 backdrop-blur text-slate-700 shadow-lg hover:bg-blue-600 hover:text-white hover:scale-105 transition-all"
+                                                        title="Reprint this order"
+                                                    >
+                                                        <Printer className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                                {/* View Full PDF Overlay */}
                                                 <a
                                                     href={order.pdf_url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="text-xs text-blue-500 hover:text-blue-600 font-medium flex items-center gap-1"
+                                                    className="absolute bottom-2 left-2 px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur-sm text-white text-[10px] font-medium hover:bg-black/70 transition-colors flex items-center gap-1"
                                                 >
                                                     <FileText className="w-3 h-3" />
-                                                    View PDF
+                                                    Fullscreen
                                                 </a>
-                                            )}
-                                        </div>
+                                            </>
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+                                                <FileText className="w-8 h-8 mb-2 opacity-50" />
+                                                <span className="text-xs">No PDF</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Right Side: Image (50%) */}
+                                    <div className="w-1/2 relative bg-slate-200 dark:bg-slate-900/50">
+                                        {order.image_url ? (
+                                            <button
+                                                onClick={() => setPreviewImage(order.image_url)}
+                                                className="w-full h-full relative group"
+                                            >
+                                                <img
+                                                    src={order.image_url}
+                                                    alt="Order"
+                                                    className="w-full h-full object-contain"
+                                                />
+                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                                    <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                                                </div>
+                                            </button>
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+                                                <div className="w-12 h-12 rounded-full bg-slate-300 dark:bg-slate-800 flex items-center justify-center mb-2">
+                                                    <X className="w-6 h-6 opacity-50" />
+                                                </div>
+                                                <span className="text-xs">No Image</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
